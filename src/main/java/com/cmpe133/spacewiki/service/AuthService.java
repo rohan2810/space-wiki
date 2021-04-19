@@ -1,5 +1,7 @@
 package com.cmpe133.spacewiki.service;
 
+import com.cmpe133.spacewiki.dto.AuthenticationResponse;
+import com.cmpe133.spacewiki.dto.LoginRequest;
 import com.cmpe133.spacewiki.dto.RegisterRequest;
 import com.cmpe133.spacewiki.exception.SpaceWikiException;
 import com.cmpe133.spacewiki.model.NotificationEmail;
@@ -7,7 +9,12 @@ import com.cmpe133.spacewiki.model.User;
 import com.cmpe133.spacewiki.model.VerificationToken;
 import com.cmpe133.spacewiki.repository.UserRepository;
 import com.cmpe133.spacewiki.repository.VerificationTokenRepository;
+import com.cmpe133.spacewiki.security.JwtProvider;
 import lombok.AllArgsConstructor;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +32,8 @@ public class AuthService {
     private final UserRepository userRepository;
     private final VerificationTokenRepository verificationTokenRepository;
     private final MailService mailService;
+    private final AuthenticationManager authenticationManager;
+    private final JwtProvider jwtProvider;
 
     public void signup(RegisterRequest registerRequest) {
         User user = new User();
@@ -44,27 +53,39 @@ public class AuthService {
     }
 
     private String generateVerificationToken(User user) {
-        String verificationCode = UUID.randomUUID().toString();
+        String token = UUID.randomUUID().toString();
         VerificationToken verificationToken = new VerificationToken();
-        verificationToken.setToken(verificationCode);
+        verificationToken.setToken(token);
         verificationToken.setUser(user);
         verificationTokenRepository.save(verificationToken);
-        return verificationCode;
+        return token;
     }
 
+    private String encodePassword(String password) {
+        return passwordEncoder.encode(password);
+    }
 
     public void verifyAccount(String token) {
-        Optional<VerificationToken> verificationToken = verificationTokenRepository.findByToken(token);
-        verificationToken.orElseThrow(() -> new SpaceWikiException("Invalid Token "));
-        fetchUserAndEnable(verificationToken.get());
+        Optional<VerificationToken> verificationTokenOptional = verificationTokenRepository.findByToken(token);
+        fetchUserAndEnable(verificationTokenOptional.orElseThrow(() -> new SpaceWikiException("Invalid Token")));
     }
 
-    private void fetchUserAndEnable(VerificationToken verificationToken) {
+    @Transactional
+    void fetchUserAndEnable(VerificationToken verificationToken) {
         String username = verificationToken.getUser().getUsername();
-        User user = userRepository.findByUsername(username).orElseThrow(() -> new SpaceWikiException("User not found with username: " + username));
+        User user = userRepository.findByUsername(username).orElseThrow(() -> new SpaceWikiException("User Not Found with id - " + username));
         user.setEnabled(true);
         userRepository.save(user);
-
-
     }
+
+    public AuthenticationResponse login(LoginRequest loginRequest) {
+        Authentication authenticate = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(loginRequest.getUsername(),
+                loginRequest.getPassword()));
+        SecurityContextHolder.getContext().setAuthentication(authenticate);
+        String authenticationToken = jwtProvider.generateToken(authenticate);
+        return new AuthenticationResponse(authenticationToken, loginRequest.getUsername());
+    }
+
+
+//    }
 }

@@ -33,7 +33,7 @@ class MailService {
             log.info("Activation email sent!!");
         } catch (MailException e) {
             log.error("Exception occurred when sending mail", e);
-            throw new SpaceWikiException("Exception occurred when sending mail to " + notificationEmail.getRecipient());
+            throw new SpaceWikiException("Exception occurred when sending mail to " + notificationEmail.getRecipient(),e);
         }
     }
 
