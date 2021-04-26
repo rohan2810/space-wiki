@@ -142,6 +142,7 @@
         </dependency>
     </dependencies>
     <build>
+        <directory>backend/target</directory>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
@@ -189,8 +190,8 @@
                         </goals>
                         <configuration>
                             <sourceDirs>
-                                <source>src/main/java</source>
-                                <source>target/generated-sources/annotations</source>
+                                <source>backend/src/main/java</source>
+                                <source>backend/target/generated-sources/annotations</source>
                             </sourceDirs>
                         </configuration>
                     </execution>
